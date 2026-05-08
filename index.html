@@ -5,7 +5,7 @@
   <title>하차 장소 안내</title>
   <style>
     body { margin:0; text-align:center; font-family:sans-serif; }
-    #map { position: relative; width: 100%; max-width: 500px; margin:auto; }
+    #map { position: relative; width: 100%; max-width: 1300px; margin:auto; }
     #map img { width: 100%; }
     #me {
       position: absolute;
@@ -38,7 +38,8 @@
   <div id="narrow"></div>
 </div>
 
-<p id="direction">방향: 확인중...</p>
+<p id="info">대기중</p>
+
 
 <script>
 const points = [
@@ -58,38 +59,31 @@ const points = [
 
 ];
 
-const marker = document.getElementById("marker");
+let me=document.getElementById("me");
+let arrow=document.getElementById("arrow");
 
-function startApp0() {
+
+function start() {
 //~ 위치 시작
-if (navigator.geolocation){
-  navigator.geolocation.getCurrentPosition((pos) => {
-    console.log("현재 위치:", pos.coords.latitude, pos.coords.longitude);
-  }, (err) => {
-    alert("위치 권한 허용 필요");
-  });
+  navigator.geolocation.watchPosition((pos) => {
+    let lat = pos.coords.latitude;
+    let lng = pos.coords.longitude;
 
-const lat = pos.coords.latitude;
-const lng = pos.coords.longitude;
-let closest = null;
-let minDist = Infinity;
-      points.forEach(p => {
-        const d = Math.sqrt(Math.pow(lat - p.lat, 2) + Math.pow(lng - p.lng, 2));
-        if (d < minDist) {
-          minDist = d;
-          closest = p;
-        }
+    let closest = null, dist = 999;
+    points.forEach(p => {
+      let d = Math.hypot(lat - p.lat, lng - p.lng);
+      if (d < Dist) {dist=d;dist = d; closest = p;}
       });
-      if (closest) {
-        marker.style.left = closest.x + "px";
-        marker.style.top = closest.y + "px";
-      }
-      console.log("GPS:", lat, lng);
-    } (err) => {
-      alert("위치 권한 허용 필요");
-    };
+""
+  if (closest) {
+    me.style.left = closest.x + "px";
+    me.style.top = closest.y + "px";
+    arrow.style.left = closest.x + "px";
+    arrow.style.top = closest.y-20 + "px";
+  }
 
-
+  document.getElementById("info").innerText = `GPS:' + lat.toFixed(5);
+  });
 
 
 
