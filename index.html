@@ -2,30 +2,40 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>GPS 약도</title>
+  <title>하차 장소 안내</title>
   <style>
     body { margin:0; text-align:center; font-family:sans-serif; }
-    #map { position: relative; width: 100%; max-width: 400px; margin:auto; }
+    #map { position: relative; width: 100%; max-width: 500px; margin:auto; }
     #map img { width: 100%; }
-    #marker {
+    #me {
       position: absolute;
-      width: 20px;
-      height: 20px;
-      background: red;
+      width: 18px;
+      height: 18px;
+      background: blue;
       border-radius: 50%;
       transform: translate(-50%, -50%);
     }
+    #arrow {
+      position: absolute;
+      width: 0;
+      height: 0;
+      border-left: 10px solid transparent;
+      border-right: 10px solid transparent;
+      border-bottom: 20px solid red;
+      transform: translate(-50%, -50%) rotate(0deg);
+      }
     button {margin:10px;padding:10px}
   </style>
 </head>
 <body>
 
-<h3>GPS 약도 샘플</h3>
-<button onclick="startApp()">위치 및 방향 시작</button>
+<h3>하차 장소 안내</h3>
+<button onclick="start()">시작</button>
 
 <div id="map">
   <img src="map.png" />
-  <div id="marker"></div>
+  <div id="me"></div>
+  <div id="narrow"></div>
 </div>
 
 <p id="direction">방향: 확인중...</p>
