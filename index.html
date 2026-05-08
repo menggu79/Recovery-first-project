@@ -1,127 +1,700 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>하차 장소 안내</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>사내 도로 안내도</title>
+ 
   <style>
-    body { margin:0; text-align:center; font-family:sans-serif; }
-    #map { position: relative; width: 100%; max-width: 1300px; margin:auto; }
-    #map img { width: 100%; }
-    #me {
-      position: absolute;
-      width: 18px;
-      height: 18px;
-      background: blue;
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
+    :root {
+      --bg: #0f172a;
+      --panel: rgba(15, 23, 42, 0.92);
+      --text: #f8fafc;
+      --muted: #cbd5e1;
+      --accent: #38bdf8;
+      --danger: #fb7185;
+      --ok: #22c55e;
+      --warning: #f59e0b;
+      --border: rgba(255,255,255,0.18);
     }
-    #arrow {
+ 
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+ 
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+ 
+    body {
+      position: fixed;
+      inset: 0;
+    }
+ 
+    .app {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+ 
+    header {
+      flex: 0 0 auto;
+      padding: 12px 14px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+    }
+ 
+    header h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.25;
+      font-weight: 800;
+    }
+ 
+    header p {
+      margin: 4px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+ 
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      padding: 10px;
+      background: rgba(15, 23, 42, 0.84);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      z-index: 10;
+    }
+ 
+    button {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.1);
+      color: var(--text);
+      padding: 10px 13px;
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+ 
+    button:active {
+      transform: scale(0.97);
+    }
+ 
+    button.primary {
+      background: var(--accent);
+      color: #082f49;
+      border-color: transparent;
+    }
+ 
+    button.danger {
+      background: var(--danger);
+      color: #fff;
+      border-color: transparent;
+    }
+ 
+    .map-wrap {
+      position: relative;
+      flex: 1 1 auto;
+      overflow: hidden;
+      background:
+        linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255,255,255,0.04) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.04) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.04) 75%);
+      background-size: 24px 24px;
+      touch-action: none;
+    }
+ 
+    .map-stage {
       position: absolute;
-      width: 0;
-      height: 0;
-      border-left: 10px solid transparent;
-      border-right: 10px solid transparent;
-      border-bottom: 20px solid red;
-      transform: translate(-50%, -50%) rotate(0deg);
+      left: 0;
+      top: 0;
+      transform-origin: 0 0;
+      will-change: transform;
+    }
+ 
+    /*
+      map.png 픽셀 제한 방지:
+      - 이미지 원본 크기 그대로 표시
+      - CSS에서 max-width: none 적용
+      - 브라우저 확대/축소는 JS transform으로 처리
+    */
+    #mapImage {
+      display: block;
+      max-width: none;
+      max-height: none;
+      user-select: none;
+      -webkit-user-drag: none;
+      pointer-events: none;
+    }
+ 
+    .gps-marker {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      margin-left: -12px;
+      margin-top: -12px;
+      border-radius: 50%;
+      background: #2563eb;
+      border: 3px solid #fff;
+      box-shadow: 0 0 0 8px rgba(37, 99, 235, 0.22), 0 8px 20px rgba(0,0,0,0.35);
+      display: none;
+      z-index: 5;
+    }
+ 
+    .gps-marker::after {
+      content: "현재 위치";
+      position: absolute;
+      left: 28px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(15, 23, 42, 0.92);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+ 
+    .accuracy-circle {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      margin-left: -40px;
+      margin-top: -40px;
+      border-radius: 50%;
+      background: rgba(56, 189, 248, 0.14);
+      border: 1px solid rgba(56, 189, 248, 0.6);
+      display: none;
+      z-index: 4;
+      pointer-events: none;
+    }
+ 
+    .status {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 11px 12px;
+      z-index: 20;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.28);
+      font-size: 13px;
+    }
+ 
+    .status strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+ 
+    .status .line {
+      color: var(--muted);
+      line-height: 1.45;
+      word-break: keep-all;
+    }
+ 
+    .status .ok {
+      color: var(--ok);
+      font-weight: 800;
+    }
+ 
+    .status .warn {
+      color: var(--warning);
+      font-weight: 800;
+    }
+ 
+    .status .bad {
+      color: var(--danger);
+      font-weight: 800;
+    }
+ 
+    .hidden {
+      display: none !important;
+    }
+ 
+    @media (min-width: 768px) {
+      header h1 {
+        font-size: 20px;
       }
-    button {margin:10px;padding:10px}
+ 
+      .status {
+        left: 16px;
+        right: auto;
+        bottom: 16px;
+        width: min(520px, calc(100% - 32px));
+      }
+    }
   </style>
 </head>
+ 
 <body>
-
-<h3>하차 장소 안내</h3>
-<button onclick="start()">시작</button>
-
-<div id="map">
-  <img src="map.png" />
-  <div id="me"></div>
-  <div id="narrow"></div>
-</div>
-
-<p id="info">대기중</p>
-
-
-<script>
-const points = [
-  {lat: 36.992046, lng: 126.369490, x:245, y:775},
-  {lat: 36.992694, lng: 126.369738, x:249, y:734},
-  {lat: 36.993117, lng: 126.373097, x:464, y:696},
-  {lat: 36.994504, lng: 126.374536, x:550, y:596},
-  {lat: 36.994861, lng: 126.375314, x:572, y:569},
-  {lat: 36.996606, lng: 126.379715, x:862, y:432},
-  {lat: 36.997095, lng: 126.380361, x:899, y:395},
-  {lat: 36.996910, lng: 126.383504, x:1085, y:404},
-  {lat: 36.996725, lng: 126.384315, x:1137, y:425},
-  {lat: 36.997081, lng: 126.386019, x:1238, y:398},
-  {lat: 36.997861, lng: 126.387548, x:1345, y:240},
-  {lat: 36.998834, lng: 126.387755, x:1331, y:250},
-  {lat: 36.998810, lng: 126.387376, x:1241, y:281},
-
-];
-
-let me=document.getElementById("me");
-let arrow=document.getElementById("arrow");
-
-
-function start() {
-//~ 위치 시작
-  navigator.geolocation.watchPosition((pos) => {
-    let lat = pos.coords.latitude;
-    let lng = pos.coords.longitude;
-
-    let closest = null, dist = 999;
-    points.forEach(p => {
-      let d = Math.hypot(lat - p.lat, lng - p.lng);
-      if (d < Dist) {dist=d;dist = d; closest = p;}
-      });
-""
-  if (closest) {
-    me.style.left = closest.x + "px";
-    me.style.top = closest.y + "px";
-    arrow.style.left = closest.x + "px";
-    arrow.style.top = closest.y-20 + "px";
-  }
-
-  document.getElementById("info").innerText = `GPS:' + lat.toFixed(5);
-  });
-
-
-
-// V iOS 방향 권한 요청 (핵심)
-if (typeof DeviceOrientationEvent!== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
- DeviceOrientationEvent.requestPermission().then(response => {
-  if (response == 'granted'){
-    window.addEventListener('deviceorientation', handleOrientation);
-    } else {
-      alert("방향 권한 필요");
+  <div class="app">
+    <header>
+      <h1>사내 도로 안내도</h1>
+      <p>지도 이미지를 손가락으로 이동하고, 두 손가락 또는 버튼으로 확대/축소할 수 있습니다.</p>
+    </header>
+ 
+    <div class="toolbar">
+      <button class="primary" id="btnLocate">내 위치 확인</button>
+      <button id="btnFollow">위치 따라가기 OFF</button>
+      <button id="btnZoomIn">＋ 확대</button>
+      <button id="btnZoomOut">－ 축소</button>
+      <button id="btnReset">전체 보기</button>
+      <button id="btnExternalMap">외부 지도 열기</button>
+    </div>
+ 
+    <main class="map-wrap" id="mapWrap" aria-label="사내 도로 안내도">
+      <div class="map-stage" id="mapStage">
+        <img id="mapImage" src="map.png" alt="사내 도로 안내도" />
+        <div class="accuracy-circle" id="accuracyCircle"></div>
+        <div class="gps-marker" id="gpsMarker"></div>
+      </div>
+ 
+      <section class="status" id="statusBox">
+        <strong>안내</strong>
+        <div class="line" id="statusText">
+          지도 파일 <b>map.png</b>를 같은 폴더에 올려주세요. 위치 확인 버튼을 누르면 GPS 권한 요청이 표시됩니다.
+        </div>
+      </section>
+    </main>
+  </div>
+ 
+  <script>
+    /*
+      =========================
+      1) GPS-이미지 좌표 보정 설정
+      =========================
+ 
+      GPS 위치를 map.png 위에 정확히 표시하려면,
+      실제 위도/경도를 아는 기준점 2개를 지도 이미지 픽셀 좌표와 함께 입력해야 합니다.
+ 
+      입력하지 않아도 GPS 좌표, 정확도, 외부 지도 열기는 동작합니다.
+      다만 map.png 위의 현재 위치 마커는 표시되지 않습니다.
+ 
+      기준점 입력 예시:
+      const CALIBRATION = {
+        enabled: true,
+        pointA: {
+          lat: 36.992046,
+          lon: 126.369490,
+          x: 245,
+          y: 775
+        },
+        pointB: {
+          lat: 36.998810,
+          lon: 126.387376,
+          x: 1241,
+          y: 281
+        }
+      };
+ 
+      x, y는 map.png 원본 이미지 기준 픽셀 좌표입니다.
+    */
+    const CALIBRATION = {
+      enabled: false,
+      pointA: {
+        lat: 0,
+        lon: 0,
+        x: 0,
+        y: 0
+      },
+      pointB: {
+        lat: 0,
+        lon: 0,
+        x: 0,
+        y: 0
+      }
+    };
+ 
+    const mapWrap = document.getElementById("mapWrap");
+    const mapStage = document.getElementById("mapStage");
+    const mapImage = document.getElementById("mapImage");
+    const gpsMarker = document.getElementById("gpsMarker");
+    const accuracyCircle = document.getElementById("accuracyCircle");
+    const statusText = document.getElementById("statusText");
+ 
+    const btnLocate = document.getElementById("btnLocate");
+    const btnFollow = document.getElementById("btnFollow");
+    const btnZoomIn = document.getElementById("btnZoomIn");
+    const btnZoomOut = document.getElementById("btnZoomOut");
+    const btnReset = document.getElementById("btnReset");
+    const btnExternalMap = document.getElementById("btnExternalMap");
+ 
+    let state = {
+      scale: 1,
+      minScale: 0.05,
+      maxScale: 8,
+      x: 0,
+      y: 0,
+      imageWidth: 0,
+      imageHeight: 0,
+      isDragging: false,
+      lastX: 0,
+      lastY: 0,
+      pointers: new Map(),
+      pinchStartDistance: 0,
+      pinchStartScale: 1,
+      pinchCenter: { x: 0, y: 0 },
+      follow: false,
+      watchId: null,
+      lastPosition: null,
+      lastMapPoint: null
+    };
+ 
+    function setStatus(html) {
+      statusText.innerHTML = html;
     }
-  }).catch(console.error);
-} else {
-  // V iOS가 아닌 경우 바로 이벤트 등록
-  window.addEventListener('deviceorientation', handleOrientation);
-}
-}
-
-
-window.addEventListener("deviceorientation", (event) => {
-  const alpha = event.alpha;
-  if (alpha === null) return;
-  let direction = "북";
-
-  if (alpha >= 45 && alpha < 135) direction = "동";
-  else if (alpha >= 135 && alpha < 225) direction = "남";
-  else if (alpha >= 225 && alpha < 315) direction = "서";
-
-  document.getElementById("direction").innerText = "방향: " + direction;
-});
-
-// 1시간 제한
-const start = Date.now();
-setInterval(() => {
-  if (Date.now() - start > 3600000) {
-    document.body.innerHTML = "사용 시간 종료";
-  }
-}, 10000);
-</script>
+ 
+    function applyTransform() {
+      mapStage.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
+    }
+ 
+    function clampScale(value) {
+      return Math.max(state.minScale, Math.min(state.maxScale, value));
+    }
+ 
+    function fitToScreen() {
+      if (!state.imageWidth || !state.imageHeight) return;
+ 
+      const wrapW = mapWrap.clientWidth;
+      const wrapH = mapWrap.clientHeight;
+ 
+      const scaleX = wrapW / state.imageWidth;
+      const scaleY = wrapH / state.imageHeight;
+ 
+      state.scale = clampScale(Math.min(scaleX, scaleY) * 0.96);
+      state.x = (wrapW - state.imageWidth * state.scale) / 2;
+      state.y = (wrapH - state.imageHeight * state.scale) / 2;
+ 
+      applyTransform();
+    }
+ 
+    function zoomAt(clientX, clientY, factor) {
+      const rect = mapWrap.getBoundingClientRect();
+      const px = clientX - rect.left;
+      const py = clientY - rect.top;
+ 
+      const beforeX = (px - state.x) / state.scale;
+      const beforeY = (py - state.y) / state.scale;
+ 
+      const newScale = clampScale(state.scale * factor);
+ 
+      state.x = px - beforeX * newScale;
+      state.y = py - beforeY * newScale;
+      state.scale = newScale;
+ 
+      applyTransform();
+    }
+ 
+    function centerOnMapPoint(point) {
+      if (!point) return;
+      state.x = mapWrap.clientWidth / 2 - point.x * state.scale;
+      state.y = mapWrap.clientHeight / 2 - point.y * state.scale;
+      applyTransform();
+    }
+ 
+    function distance(p1, p2) {
+      return Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
+    }
+ 
+    function midpoint(p1, p2) {
+      return {
+        clientX: (p1.clientX + p2.clientX) / 2,
+        clientY: (p1.clientY + p2.clientY) / 2
+      };
+    }
+ 
+    function isCalibrationValid() {
+      if (!CALIBRATION.enabled) return false;
+ 
+      const a = CALIBRATION.pointA;
+      const b = CALIBRATION.pointB;
+ 
+      return Number.isFinite(a.lat) &&
+        Number.isFinite(a.lon) &&
+        Number.isFinite(a.x) &&
+        Number.isFinite(a.y) &&
+        Number.isFinite(b.lat) &&
+        Number.isFinite(b.lon) &&
+        Number.isFinite(b.x) &&
+        Number.isFinite(b.y) &&
+        (a.lat !== b.lat || a.lon !== b.lon) &&
+        (a.x !== b.x || a.y !== b.y);
+    }
+ 
+    /*
+      간단한 선형 보정 방식입니다.
+      사내 안내도처럼 범위가 크지 않은 평면 지도에서는 보통 충분히 실용적입니다.
+      더 높은 정밀도가 필요하면 기준점을 3개 이상 사용하는 Affine Transform 방식으로 확장할 수 있습니다.
+    */
+    function gpsToImagePoint(lat, lon) {
+      if (!isCalibrationValid()) return null;
+ 
+      const a = CALIBRATION.pointA;
+      const b = CALIBRATION.pointB;
+ 
+      const dxPixel = b.x - a.x;
+      const dyPixel = b.y - a.y;
+      const dxLon = b.lon - a.lon;
+      const dyLat = b.lat - a.lat;
+ 
+      if (dxLon === 0 || dyLat === 0) return null;
+ 
+      const x = a.x + ((lon - a.lon) / dxLon) * dxPixel;
+      const y = a.y + ((lat - a.lat) / dyLat) * dyPixel;
+ 
+      return { x, y };
+    }
+ 
+    function updateMarker(position) {
+      const { latitude, longitude, accuracy } = position.coords;
+      const point = gpsToImagePoint(latitude, longitude);
+ 
+      state.lastPosition = position;
+      state.lastMapPoint = point;
+ 
+      let message = `
+        <span class="ok">GPS 위치 확인 완료</span><br>
+        위도: ${latitude.toFixed(7)}, 경도: ${longitude.toFixed(7)}<br>
+        위치 정확도: 약 ${Math.round(accuracy)}m
+      `;
+ 
+      if (point) {
+        gpsMarker.style.left = `${point.x}px`;
+        gpsMarker.style.top = `${point.y}px`;
+        gpsMarker.style.display = "block";
+ 
+        /*
+          정확도 원은 실제 지도 축척까지 정확히 반영하기 어렵기 때문에
+          시각적 참고용으로 제한된 크기로 표시합니다.
+        */
+        const visualSize = Math.max(50, Math.min(220, accuracy * 2));
+        accuracyCircle.style.left = `${point.x}px`;
+        accuracyCircle.style.top = `${point.y}px`;
+        accuracyCircle.style.width = `${visualSize}px`;
+        accuracyCircle.style.height = `${visualSize}px`;
+        accuracyCircle.style.marginLeft = `${-visualSize / 2}px`;
+        accuracyCircle.style.marginTop = `${-visualSize / 2}px`;
+        accuracyCircle.style.display = "block";
+ 
+        message += `<br><span class="ok">현재 위치가 안내도 위에 표시되었습니다.</span>`;
+ 
+        if (state.follow) {
+          centerOnMapPoint(point);
+        }
+      } else {
+        gpsMarker.style.display = "none";
+        accuracyCircle.style.display = "none";
+        message += `
+          <br><span class="warn">안내도 위 위치 표시를 위해서는 CALIBRATION 기준점 2개 입력이 필요합니다.</span>
+        `;
+      }
+ 
+      setStatus(message);
+    }
+ 
+    function handleGeoError(error) {
+      let msg = "위치 정보를 가져올 수 없습니다.";
+ 
+      if (error.code === error.PERMISSION_DENIED) {
+        msg = "위치 권한이 거부되었습니다. 브라우저 또는 휴대폰 설정에서 위치 권한을 허용해주세요.";
+      } else if (error.code === error.POSITION_UNAVAILABLE) {
+        msg = "현재 위치 정보를 사용할 수 없습니다. 실외 또는 GPS 수신이 가능한 곳에서 다시 시도해주세요.";
+      } else if (error.code === error.TIMEOUT) {
+        msg = "위치 확인 시간이 초과되었습니다. 다시 시도해주세요.";
+      }
+ 
+      setStatus(`<span class="bad">${msg}</span>`);
+    }
+ 
+    function startLocationWatch() {
+      if (!("geolocation" in navigator)) {
+        setStatus(`<span class="bad">이 브라우저는 GPS 위치 기능을 지원하지 않습니다.</span>`);
+        return;
+      }
+ 
+      setStatus(`GPS 위치를 확인하는 중입니다. 권한 요청이 나오면 <b>허용</b>을 선택해주세요.`);
+ 
+      if (state.watchId !== null) {
+        navigator.geolocation.clearWatch(state.watchId);
+      }
+ 
+      state.watchId = navigator.geolocation.watchPosition(
+        updateMarker,
+        handleGeoError,
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 3000
+        }
+      );
+    }
+ 
+    function openExternalMap() {
+      if (!state.lastPosition) {
+        setStatus(`<span class="warn">먼저 '내 위치 확인' 버튼을 눌러 현재 위치를 확인해주세요.</span>`);
+        return;
+      }
+ 
+      const lat = state.lastPosition.coords.latitude;
+      const lon = state.lastPosition.coords.longitude;
+ 
+      /*
+        Android/iOS 모두 브라우저에서 열 수 있는 범용 Google Maps URL입니다.
+        설치된 지도 앱이 있으면 앱으로 전환될 수 있습니다.
+      */
+      const url = `https://www.google.com/maps?q=${lat},${lon}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+ 
+    mapImage.addEventListener("load", () => {
+      state.imageWidth = mapImage.naturalWidth;
+      state.imageHeight = mapImage.naturalHeight;
+ 
+      fitToScreen();
+ 
+      setStatus(`
+        지도 로드 완료: ${state.imageWidth.toLocaleString()} × ${state.imageHeight.toLocaleString()} px<br>
+        <span class="ok">map.png 원본 픽셀 크기 제한 없이 표시됩니다.</span>
+      `);
+    });
+ 
+    mapImage.addEventListener("error", () => {
+      setStatus(`
+        <span class="bad">map.png 파일을 불러오지 못했습니다.</span><br>
+        index.html과 같은 폴더에 <b>map.png</b> 파일이 있는지 확인해주세요.
+      `);
+    });
+ 
+    mapWrap.addEventListener("pointerdown", (e) => {
+      mapWrap.setPointerCapture(e.pointerId);
+      state.pointers.set(e.pointerId, e);
+ 
+      if (state.pointers.size === 1) {
+        state.isDragging = true;
+        state.lastX = e.clientX;
+        state.lastY = e.clientY;
+      }
+ 
+      if (state.pointers.size === 2) {
+        const points = Array.from(state.pointers.values());
+        state.pinchStartDistance = distance(points[0], points[1]);
+        state.pinchStartScale = state.scale;
+        state.pinchCenter = midpoint(points[0], points[1]);
+      }
+    });
+ 
+    mapWrap.addEventListener("pointermove", (e) => {
+      if (!state.pointers.has(e.pointerId)) return;
+      state.pointers.set(e.pointerId, e);
+ 
+      if (state.pointers.size === 1 && state.isDragging) {
+        const dx = e.clientX - state.lastX;
+        const dy = e.clientY - state.lastY;
+ 
+        state.x += dx;
+        state.y += dy;
+ 
+        state.lastX = e.clientX;
+        state.lastY = e.clientY;
+ 
+        applyTransform();
+      }
+ 
+      if (state.pointers.size === 2) {
+        const points = Array.from(state.pointers.values());
+        const currentDistance = distance(points[0], points[1]);
+ 
+        if (state.pinchStartDistance > 0) {
+          const factor = currentDistance / state.pinchStartDistance;
+          const newScale = clampScale(state.pinchStartScale * factor);
+ 
+          const center = midpoint(points[0], points[1]);
+          const rect = mapWrap.getBoundingClientRect();
+          const px = center.clientX - rect.left;
+          const py = center.clientY - rect.top;
+ 
+          const beforeX = (px - state.x) / state.scale;
+          const beforeY = (py - state.y) / state.scale;
+ 
+          state.x = px - beforeX * newScale;
+          state.y = py - beforeY * newScale;
+          state.scale = newScale;
+ 
+          applyTransform();
+        }
+      }
+    });
+ 
+    function endPointer(e) {
+      state.pointers.delete(e.pointerId);
+ 
+      if (state.pointers.size === 0) {
+        state.isDragging = false;
+      }
+ 
+      if (state.pointers.size === 1) {
+        const only = Array.from(state.pointers.values())[0];
+        state.lastX = only.clientX;
+        state.lastY = only.clientY;
+      }
+    }
+ 
+    mapWrap.addEventListener("pointerup", endPointer);
+    mapWrap.addEventListener("pointercancel", endPointer);
+    mapWrap.addEventListener("pointerleave", endPointer);
+ 
+    mapWrap.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.15 : 0.87;
+      zoomAt(e.clientX, e.clientY, factor);
+    }, { passive: false });
+ 
+    btnLocate.addEventListener("click", startLocationWatch);
+ 
+    btnFollow.addEventListener("click", () => {
+      state.follow = !state.follow;
+      btnFollow.textContent = state.follow ? "위치 따라가기 ON" : "위치 따라가기 OFF";
+      btnFollow.classList.toggle("primary", state.follow);
+ 
+      if (state.follow && state.lastMapPoint) {
+        centerOnMapPoint(state.lastMapPoint);
+      }
+    });
+ 
+    btnZoomIn.addEventListener("click", () => {
+      zoomAt(mapWrap.clientWidth / 2, mapWrap.clientHeight / 2, 1.25);
+    });
+ 
+    btnZoomOut.addEventListener("click", () => {
+      zoomAt(mapWrap.clientWidth / 2, mapWrap.clientHeight / 2, 0.8);
+    });
+ 
+    btnReset.addEventListener("click", fitToScreen);
+    btnExternalMap.addEventListener("click", openExternalMap);
+ 
+    window.addEventListener("resize", () => {
+      fitToScreen();
+    });
+  </script>
 </body>
 </html>
+ 
